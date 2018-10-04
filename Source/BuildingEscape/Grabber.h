@@ -38,5 +38,7 @@ private:
 	void HandleComponents();
 	void HandlePhysicsComponent();
 	void HandleInputComponent();
-	const FHitResult GetGrabTarget();
+	FHitResult GetGrabTarget();
+	FVector GetReachStartPoint();
+	FVector GetReachEndPoint();
 };
