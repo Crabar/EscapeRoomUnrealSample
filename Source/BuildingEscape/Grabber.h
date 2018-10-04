@@ -34,4 +34,9 @@ private:
 	UInputComponent* InputComponent = nullptr;
 
 	void OnGrabPressed();
+	void OnReleasePressed();
+	void HandleComponents();
+	void HandlePhysicsComponent();
+	void HandleInputComponent();
+	const FHitResult GetGrabTarget();
 };

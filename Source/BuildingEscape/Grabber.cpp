@@ -10,20 +10,11 @@
 // Sets default values for this component's properties
 UGrabber::UGrabber()
 {
-	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
-
-	// ...
 }
 
-
-// Called when the game starts
-void UGrabber::BeginPlay()
+void UGrabber::HandlePhysicsComponent()
 {
-	Super::BeginPlay();
-	UE_LOG(LogTemp, Warning, TEXT("Grabber is reporting for duty!"));
-
 	PhysicsHandle = GetOwner()->FindComponentByClass<UPhysicsHandleComponent>();
 	if (PhysicsHandle)
 	{
@@ -33,11 +24,15 @@ void UGrabber::BeginPlay()
 	{
 		UE_LOG(LogTemp, Error, TEXT("No Physics Handle included in %s!"), *GetOwner()->GetName());
 	}
+}
 
+void UGrabber::HandleInputComponent()
+{
 	InputComponent = GetOwner()->FindComponentByClass<UInputComponent>();
 	if (InputComponent)
 	{
 		InputComponent->BindAction("Grab", IE_Pressed, this, &UGrabber::OnGrabPressed);
+		InputComponent->BindAction("Grab", IE_Released, this, &UGrabber::OnReleasePressed);
 	}
 	else
 	{
@@ -45,16 +40,42 @@ void UGrabber::BeginPlay()
 	}
 }
 
+void UGrabber::HandleComponents()
+{
+	HandlePhysicsComponent();
+	HandleInputComponent();
+}
+
+// Called when the game starts
+void UGrabber::BeginPlay()
+{
+	Super::BeginPlay();
+
+	HandleComponents();
+}
+
 void UGrabber::OnGrabPressed()
 {
 	UE_LOG(LogTemp, Warning, TEXT("GRAB!"));
+	auto GrabTarget = GetGrabTarget();
+	if (GrabTarget.GetActor())
+	{
+		PhysicsHandle->GrabComponentAtLocation(GrabTarget.GetComponent(), GrabTarget.BoneName, GrabTarget.GetActor()->GetActorLocation());
+	}	
 }
 
-// Called every frame
-void UGrabber::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UGrabber::OnReleasePressed()
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	if (PhysicsHandle->GrabbedComponent)
+	{
+		PhysicsHandle->ReleaseComponent();
+	}
+	
+	UE_LOG(LogTemp, Warning, TEXT("RELEASE!"));
+}
 
+const FHitResult UGrabber::GetGrabTarget()
+{
 	FVector PlayerViewPointLocation;
 	FRotator PlayerViewPointRotation;
 	GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(OUT PlayerViewPointLocation, OUT PlayerViewPointRotation);
@@ -64,9 +85,24 @@ void UGrabber::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompone
 	const auto CollisionQueryParams = FCollisionQueryParams(FName(TEXT("")), false, GetOwner());
 	const auto IsHitted = GetWorld()->LineTraceSingleByObjectType(OUT HitResult, PlayerViewPointLocation, LineTraceEnd, FCollisionObjectQueryParams(ECC_PhysicsBody), CollisionQueryParams);
 	if (IsHitted)
-	{
+	{		
 		UE_LOG(LogCollision, Warning, TEXT("I'm looking at %s"), *HitResult.GetActor()->GetName());
 	}
+	return HitResult;
+}
 
+
+void UGrabber::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (PhysicsHandle->GrabbedComponent)
+	{
+		FVector PlayerViewPointLocation;
+		FRotator PlayerViewPointRotation;
+		GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(OUT PlayerViewPointLocation, OUT PlayerViewPointRotation);
+		const auto LineTraceEnd = PlayerViewPointLocation + PlayerViewPointRotation.Vector() * Reach;
+		PhysicsHandle->SetTargetLocation(LineTraceEnd);
+	}
 }
 
