@@ -7,24 +7,13 @@
 
 
 // Sets default values for this component's properties
-UOpenDoor::UOpenDoor(): PressurePlate(nullptr)
+UOpenDoor::UOpenDoor()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 
 	// ...
-}
-
-
-void UOpenDoor::OpenDoor()
-{
-	Owner->SetActorRotation(FRotator(0.f, OpenAngle, 0.f));
-}
-
-void UOpenDoor::CloseDoor()
-{
-	Owner->SetActorRotation(FRotator(0.f, 0.f, 0.f));
 }
 
 // Called when the game starts
@@ -41,17 +30,21 @@ void UOpenDoor::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompon
 
 	if (GetTotalMassOfActorOnPlate() >= NeededPressureMass)
 	{
-		OpenDoor();
-		LastDoorOpenTime = GetWorld()->GetTimeSeconds();
+		OnOpen.Broadcast();
 	}
-	else if (GetWorld()->GetTimeSeconds() - LastDoorOpenTime > CloseDoorDelay)
+	else
 	{
-		CloseDoor();
+		OnClose.Broadcast();
 	}
 }
 
 float UOpenDoor::GetTotalMassOfActorOnPlate()
 {
+	if (!PressurePlate)
+	{
+		return 0;
+	}
+
 	float TotalMass = 0.f;
 	TArray<AActor*> OverlappingActors;
 	PressurePlate->GetOverlappingActors(OUT OverlappingActors);
